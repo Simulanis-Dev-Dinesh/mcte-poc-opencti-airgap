@@ -1,25 +1,44 @@
-# Example override for the air-gapped host: every image resolves to the
-# internal registry, never to Docker Hub / GHCR.
+# Air-gap override: point every service at the internal registry.
 #
-# Copy next to your docker-compose.yml and run:
-#   docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+# VERIFY THE SERVICE NAMES FIRST — this file is only correct if your
+# docker-compose.yml uses the same ones:
 #
-# Keep this file in sync with images.txt — same names, same order.
+#   docker compose config --services        # on the source VM, in the compose dir
+#
+# A service name that does not exist in your compose file is silently ignored,
+# so a wrong name here does not error — it just leaves that image pointing at
+# Docker Hub inside the air gap.
+#
+# Image names match what scripts/mirror-images.sh produces from images.txt
+# (registry-relative path with separators flattened): xtmone-platform,
+# opencti-platform, elasticsearch-elasticsearch, pgsty-silo, pgvector-pgvector.
+# Both xtmone/platform and opencti/platform are mirrored — point each service
+# at the one it actually runs on the source.
+#
+# Run with BOTH original compose files plus this one:
+#   docker compose -f docker-compose.yml -f docker-compose.https.yml \
+#                  -f compose/docker-compose.override.yml up -d
 services:
   elasticsearch:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/elasticsearch:${ELASTICSEARCH_VERSION}
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/elasticsearch-elasticsearch:${ELASTICSEARCH_VERSION}
     environment:
       - thread_pool.search.queue_size=5000
   redis:
     image: ${INTERNAL_REGISTRY:-registry.internal:5000}/redis:${REDIS_VERSION}
   rabbitmq:
     image: ${INTERNAL_REGISTRY:-registry.internal:5000}/rabbitmq:${RABBITMQ_VERSION}
-  minio:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/minio:${MINIO_VERSION}
-  opencti:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/platform:${OPENCTI_VERSION}
+  silo:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgsty-silo:${SILO_VERSION:-latest}
+  pgvector:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgvector-pgvector:${PGVECTOR_VERSION:-pg17}
+  platform:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-platform:${OPENCTI_VERSION}
     environment:
       - APP__BASE_URL=${OPENCTI_BASE_URL}
       - APP__ENCRYPTION_KEY=${APP__ENCRYPTION_KEY}
   worker:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/worker:${OPENCTI_VERSION}
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-worker:${OPENCTI_VERSION}
+  xtm-composer:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/filigran-xtm-composer:${XTM_COMPOSER_VERSION}
+  nginx:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/nginx:${NGINX_VERSION:-stable}

@@ -68,3 +68,40 @@ a CA the connector trusts (do not disable TLS verification).
   connector env vars and OpenCTI playbooks.
 - Time sync matters on both sides: internal NTP for both manager and OpenCTI host.
 - Firewall: manager -> OpenCTI 443 only; OpenCTI connector -> indexer 9200 only.
+
+## Retargeting — do it from the repo
+
+`scripts/wazuh-retarget.sh` covers the two address changes this integration
+needs. Both are dry runs until you pass `--apply`.
+
+### OpenCTI moved to a new URL
+
+```bash
+./scripts/wazuh-retarget.sh --new-url https://opencti.internal.example
+./scripts/wazuh-retarget.sh --new-url https://opencti.internal.example --apply
+```
+
+Run it on the manager, or from your workstation with `--ssh manager@wazuh-server`.
+It timestamps a backup of `ossec.conf` and `opencti.env`, rewrites `<hook_url>`
+and `OPENCTI_URL`, restarts the manager, then watches `integrations.log`.
+
+It never touches `OPENCTI_TOKEN` — the token keeps working because the platform
+data is restored intact. Rotate it separately.
+
+### The manager itself moved
+
+If the manager's address changes, every agent still points at the old one and
+stops reporting. The script writes a managed block into the centralised config:
+
+```bash
+./scripts/wazuh-retarget.sh --manager-address wazuh.internal.example --apply
+```
+
+The block sits between `<!-- BEGIN opencti-airgap:manager-address -->` and
+`<!-- END opencti-airgap:manager-address -->`, so re-running it replaces the
+block in place rather than appending. Agents pick it up on their next connection.
+
+Order of preference for an estate-wide move: reuse the same IP in the new
+network (no change at all), then a DNS name in agent configs (one DNS edit), and
+only then pushing centralised config. Settle it before cutover night — this is
+not a same-evening operation.

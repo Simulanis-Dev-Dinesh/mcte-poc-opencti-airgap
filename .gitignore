@@ -5,3 +5,4 @@ out/
 *.tgz
 *.oci.tar
 .DS_Store
+__pycache__/

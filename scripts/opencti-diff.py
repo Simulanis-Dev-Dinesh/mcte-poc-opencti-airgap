@@ -39,7 +39,9 @@ def main():
         sa = {x.get("name") or x.get("definition") or x.get("id") for x in af["lists"].get(k, [])}
         missing, extra = sb - sa, sa - sb
         status = "ok" if not missing and not extra else f"missing={sorted(missing)[:5]} extra={sorted(extra)[:5]}"
-        if missing:
+        # Extra objects on the target matter too: a double-restored volume or
+        # a re-imported bundle must fail the gate, not pass it.
+        if missing or extra:
             bad += 1
         print(f"{k:<34}{len(sb):>10}{len(sa):>10}   {status}")
 

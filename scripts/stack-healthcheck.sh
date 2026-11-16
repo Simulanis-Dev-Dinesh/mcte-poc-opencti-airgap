@@ -42,8 +42,19 @@ rd=$(docker ps -qf name=redis | head -1)
 [ -n "$rd" ] && docker exec "$rd" redis-cli info memory > "$OUT/redis-memory.txt" 2>&1
 
 step "object storage"
-mc=$(docker ps -qf name=minio | head -1)
-[ -n "$mc" ] && docker exec "$mc" du -sh /data 2>/dev/null > "$OUT/minio-size.txt" 2>&1
+# XTM One runs pgsty/silo where older stacks ran MinIO. Check both so this
+# step is never silently empty (an empty file always "matches").
+os_ctr=""
+for cand in silo minio; do
+  c=$(docker ps -qf "name=$cand" | head -1)
+  [ -n "$c" ] && { os_ctr="$c"; break; }
+done
+if [ -n "$os_ctr" ]; then
+  { echo "container=$os_ctr"; docker exec "$os_ctr" du -sh /data 2>/dev/null; } \
+    > "$OUT/object-storage.txt" 2>&1
+else
+  echo "no silo/minio container found" > "$OUT/object-storage.txt"
+fi
 
 step "host"
 df -h                                             > "$OUT/df.txt" 2>&1
@@ -56,7 +67,7 @@ timedatectl                                       > "$OUT/time.txt" 2>&1
 chronyc tracking                                  > "$OUT/chrony.txt" 2>&1 || true
 
 step "tls"
-base=$(grep -hoP '^APP__BASE_URL=\K.*' "$COMPOSE_DIR/.env" 2>/dev/null | tr -d '"' | head -1)
+base=$(grep -hoP '^(APP__BASE_URL|OPENCTI_BASE_URL|OPENCTI_HOST)=\K.*' "$COMPOSE_DIR/.env" 2>/dev/null | tr -d '"' | head -1)
 if [ -n "$base" ]; then
   hostport=$(printf '%s' "$base" | sed -E 's#https?://##; s#/.*##')
   case "$hostport" in *:*) ;; *) hostport="$hostport:443";; esac
@@ -74,4 +85,4 @@ echo "Key lines to compare before/after:"
 echo "  es-health.json -> status / number_of_nodes / unassigned_shards"
 echo "  ps.txt         -> every service Up, no restart loops"
 echo "  es-indices.txt -> doc counts per index"
-echo "  volume-sizes.txt, minio-size.txt"
+echo "  volume-sizes.txt, object-storage.txt"

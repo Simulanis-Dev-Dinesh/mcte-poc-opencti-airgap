@@ -18,7 +18,10 @@ make azure-inventory      # read-only inventory of the Azure side  -> out/azure/
 make opencti-inventory    # golden numbers from the live platform   -> out/inventory-before.json
 make healthcheck          # docker / ES / RabbitMQ / Redis / time / TLS state -> out/health-*/
 make mirror               # mirror images.txt to GHCR + build oci bundle (needs internet)
+make opencti-inventory-after   # golden numbers from the TARGET  -> out/inventory-after.json
 make diff                 # after cutover: inventory-after.json vs inventory-before.json
+make wazuh-retarget NEW_URL=https://opencti.internal.example SSH=manager@wazuh-server
+                          # repoint the Wazuh manager; dry run until APPLY=1
 ```
 
 ## Layout
@@ -35,6 +38,7 @@ scripts/mirror-images.sh       skopeo -> GHCR with digest preservation + oci arc
 scripts/load-into-registry.sh  inside the gap: oci archives -> internal registry
 scripts/restore-volumes.sh     inside the gap: restore esdata/s3data/redisdata/amqpdata
 scripts/backup-volumes.sh      on the source: consistent volume tarballs
+scripts/wazuh-retarget.sh      repoint the Wazuh integration / agents at a new address
 .github/workflows/mirror-images.yml   scheduled bundle builder -> GitHub Release
 docs/RUNBOOK.md                phased migration runbook
 docs/COMMANDS.md               the full command reference

@@ -84,7 +84,7 @@ def main():
         try:
             d = c.q(COUNT_Q, {"types": [t]})
             n = (d.get("stixCoreObjectsNumber") or {}).get("total")
-            if n:
+            if n is not None:   # keep real zeros; "missing" and "zero" are different
                 inv["counts"][t] = n
         except Exception as e:
             inv["errors"][f"count:{t}"] = str(e)

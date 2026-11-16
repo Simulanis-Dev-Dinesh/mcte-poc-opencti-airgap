@@ -48,9 +48,19 @@ echo 'vm.max_map_count=1048575' | sudo tee -a /etc/sysctl.conf && sudo sysctl -p
 # internal NTP, internal CA certs, docker data-root on the SSD volume, log rotation
 
 LOCAL_REGISTRY=registry.internal:5000 ./scripts/load-into-registry.sh
-SRC=./volumes PROJECT=opencti ./scripts/restore-volumes.sh
-docker compose -f docker-compose.yml -f compose/docker-compose.override.yml up -d
+SRC=./volumes PROJECT=xtm ./scripts/restore-volumes.sh
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
 ```
+
+`PROJECT=xtm`, not `opencti`. The compose project on this platform is `xtm`, so
+the tarballs are already `xtm_esdata.tgz`, `xtm_s3data.tgz` and so on. Passing
+the wrong project restores 3.7 GB into a volume the stack never mounts, then
+`docker compose up` creates a fresh empty one and the platform starts with no
+data and no error. Check the volume names in `docker volume ls` before the first
+`up -d`.
+
+Both compose files, always. `docker-compose.https.yml` is where `nginx` and the
+HTTPS front end come from — omitting it gives a platform with no web UI.
 
 Same version in. Fix `APP__BASE_URL` and every connector URL to internal FQDNs.
 No config may still reference `20.244.26.112`.
@@ -59,9 +69,13 @@ No config may still reference `20.244.26.112`.
 
 ```bash
 ./scripts/stack-healthcheck.sh                  # target
-./scripts/opencti-inventory.py --out out/inventory-after.json
+make opencti-inventory-after                    # writes out/inventory-after.json
 make diff                                       # exit 0 = sign-off
 ```
+
+Never run `make opencti-inventory` on the target — it writes
+`out/inventory-before.json` and overwrites the baseline you are comparing
+against. `make diff` refuses to run if either file is missing.
 
 Manual checks the numbers can't cover: a report attachment downloads (proves
 `s3data`), search returns results without a reindex, every connector green with
@@ -70,6 +84,8 @@ on the new base URL.
 
 ## Phase 5 — Cut over and keep the rollback
 
+- Repoint Wazuh (dry run first, then `--apply`):
+  `./scripts/wazuh-retarget.sh --ssh manager@wazuh-server --new-url https://opencti.internal.example`
 - Update DNS / client bookmarks; announce the new base URL
 - Keep Azure VM **deallocated, disks intact** for 30 days; keep the bundle and
   the volume tarballs
