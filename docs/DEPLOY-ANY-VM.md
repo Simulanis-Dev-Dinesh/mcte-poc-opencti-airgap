@@ -50,12 +50,85 @@ the files there first, then push them onward — two hops, checksum at the end.
 
 ### C. True air gap — removable media
 
-1. Copy the bundle and the kit to the media.
-2. `sync` and unmount cleanly. A pulled drive is a corrupted drive.
-3. Carry `sha256sums.txt` **separately** from the media, and keep the gpg
-   passphrase somewhere that is neither.
-4. Log carrier, media serial, file count, hashes, sign-out and sign-in.
-5. At the destination, mount **read-only**, copy off, unmount, then verify.
+#### Pick the filesystem first
+
+| Filesystem | Verdict |
+|---|---|
+| **FAT32** | **No.** Hard 4 GiB per-file limit. `xtm-images.tar` is 6.8 GB and `xtm_esdata.tgz` is 3.7 GB — the copy fails part-way and the drive looks fine. |
+| **exFAT** | Works, cross-platform. No permissions, no journal. Fine for the tarballs, not for `env.xtm-one`. |
+| **ext4** | Best if both ends are Linux. Journaled, preserves permissions. |
+| **LUKS + ext4** | What you want for anything leaving the building. |
+
+A 32 GB drive is comfortable for ~12 GB. Never guess the device node —
+`lsblk -o NAME,SIZE,MODEL,SERIAL,MOUNTPOINT` and read it twice. `mkfs` on the
+wrong device destroys the laptop.
+
+#### Encrypt the device
+
+```bash
+sudo cryptsetup luksFormat /dev/sdX
+sudo cryptsetup open /dev/sdX bundle
+sudo mkfs.ext4 /dev/mapper/bundle
+sudo mount /dev/mapper/bundle /mnt/bundle
+sudo chown "$USER" /mnt/bundle
+```
+
+#### Copy and verify on the device
+
+```bash
+cd /path/to/kit
+./scripts/bundle-to-media.sh --src ~/opencti-bundle --dest /mnt/bundle/opencti-bundle
+./scripts/bundle-to-media.sh --src ~/opencti-bundle --dest /mnt/bundle/opencti-bundle --apply
+```
+
+Dry run first. The script refuses a FAT32 destination when it sees a file over
+4 GiB, checks free space, copies, re-runs the checksums **on the device**,
+`sync`s, and writes `TRANSFER-RECORD.txt` for the chain of custody. It does not
+encrypt and does not delete anything from the source.
+
+Doing it by hand is the same idea:
+
+```bash
+cp -a ~/opencti-bundle/. /mnt/bundle/opencti-bundle/
+cd /mnt/bundle/opencti-bundle && sha256sum -c sha256sums.txt
+sync
+```
+
+The verification must run on the media, not on the laptop. That is the whole
+point of the step.
+
+#### Close it down
+
+```bash
+sudo umount /mnt/bundle
+sudo cryptsetup close bundle
+```
+
+Never pull a mounted drive — a pulled drive is a corrupted drive.
+
+#### What travels separately from the media
+
+- `sha256sums.txt`, on paper or in a ticket, so a corrupted drive can be
+  identified without trusting anything on the drive itself
+- the LUKS passphrase and the gpg passphrase, held by a person, in neither
+  place
+- the transfer record: carrier, media serial, file count, hashes, sign-out and
+  sign-in, two names
+
+#### At the destination
+
+Mount **read-only**, copy off to local disk, unmount, then verify locally:
+
+```bash
+sudo mount -o ro /dev/sdX /mnt/in
+cp -a /mnt/in/opencti-bundle ~/opencti-bundle
+sudo umount /mnt/in
+cd ~/opencti-bundle && sha256sum -c sha256sums.txt
+```
+
+Copy off before restoring. Restoring straight from removable media means a
+flaky drive and a bad restore look identical, and you will not know which one
+you are debugging.
 
 ### D. Images only — an internal registry the target can already reach
 

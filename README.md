@@ -62,6 +62,7 @@ versions.env                   target versions + non-secret settings
 compose/docker-compose.override.yml  air-gap override; confirm service names before use
 
 scripts/backup-volumes.sh      on the source: consistent volume tarballs
+scripts/bundle-to-media.sh     copy the bundle to a drive, verified on the drive
 scripts/stack-healthcheck.sh   runs on either host: containers, storage, ES, RMQ, Redis, time, TLS
 scripts/opencti-inventory.py   read-only GraphQL inventory (counts + config)
 scripts/opencti-diff.py        compares two inventories; exits non-zero on drift OR extras
