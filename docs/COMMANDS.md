@@ -1,38 +1,6 @@
 # Command reference
 
-## A. Check everything on the Azure side
-
-```bash
-az login
-az account set --subscription "<sub-id>"
-
-# who/what/where
-az account show -o table
-az group list -o table
-az vm list -d -g SIMULANIS-IN -o table
-az vm show -g SIMULANIS-IN -n Opencti -d -o json
-
-# disks, snapshots, sizes
-az disk list -g SIMULANIS-IN -o table
-az snapshot list -g SIMULANIS-IN -o table
-az disk show -g SIMULANIS-IN -n <disk> --query '{sku:sku.name,gb:diskSizeGb,state:diskState}'
-
-# network you are leaving behind
-az network nic show -g SIMULANIS-IN -n <nic> -o json
-az network nsg rule list -g SIMULANIS-IN --nsg-name <nsg> -o table
-az network public-ip list -g SIMULANIS-IN -o table
-
-# runtime facts without SSH (audited in the activity log)
-az vm run-command invoke -g SIMULANIS-IN -n Opencti --command-id RunShellScript \
-  --scripts "docker compose version; docker images --digests; df -h; sysctl vm.max_map_count"
-
-# cost/ownership trail
-az monitor activity-log list -g SIMULANIS-IN --max-events 100 -o table
-```
-
-Or just: `make azure-inventory` (writes everything to `out/azure/`).
-
-## B. Check everything inside OpenCTI
+## A. Check everything inside OpenCTI
 
 On the host:
 
@@ -74,7 +42,7 @@ curl -s -X POST "$OPENCTI_URL/graphql" \
 Connector/version health in the UI: **Data > Connectors** (status, last run,
 queues), **Settings > About** (platform version).
 
-## C. Wazuh side
+## B. Wazuh side
 
 ```bash
 # manager
@@ -89,7 +57,7 @@ curl -sk -u admin:<pw> https://<indexer>:9200/_cat/indices/wazuh-alerts-*?v
 
 See `docs/WAZUH-INTEGRATION.md`.
 
-## D. GitHub / bundle
+## C. GitHub / bundle
 
 ```bash
 gh repo view

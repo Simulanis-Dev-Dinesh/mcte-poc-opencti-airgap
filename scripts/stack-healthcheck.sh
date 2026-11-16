@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Full state check of an OpenCTI host. Runs identically on Azure and in the air gap,
+# Full state check of an OpenCTI host. Runs identically on the source and the target,
 # so the two outputs can be diffed.
 #
 #   COMPOSE_DIR=/opt/opencti ./scripts/stack-healthcheck.sh

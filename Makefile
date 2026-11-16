@@ -2,12 +2,9 @@ SHELL := /usr/bin/env bash
 -include versions.env
 export
 
-.PHONY: azure-inventory opencti-inventory opencti-inventory-after healthcheck mirror diff backup wazuh-retarget
+.PHONY: opencti-inventory opencti-inventory-after healthcheck mirror diff backup wazuh-retarget
 
-azure-inventory:
-	./scripts/azure-inventory.sh
-
-# SOURCE side. This is the baseline — run it on Azure, commit the result.
+# SOURCE side. This is the baseline — run it on the source host, commit it.
 opencti-inventory:
 	./scripts/opencti-inventory.py --out out/inventory-before.json
 

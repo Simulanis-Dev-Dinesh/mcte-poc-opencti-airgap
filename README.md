@@ -1,13 +1,14 @@
 # OpenCTI air-gap migration kit
 
-Moving the OpenCTI platform from Azure (`SIMULANIS-IN` / `Opencti`) into the
-air-gapped network, carrying all data, and keeping the Wazuh manager wired to it.
+Moving the OpenCTI platform off its current host into an air-gapped network,
+carrying all the data, and keeping the Wazuh manager wired to it. Host-agnostic:
+the same steps work for a cloud VM, a LAN host, or a machine with no network.
 
 Three tools, three jobs — keep them separate:
 
 | Tool | Job |
 |---|---|
-| Azure CLI | Freeze and prove the source: snapshots, network capture, consistent stop, bulk data egress |
+| Docker + the host itself | Freeze and prove the source: consistent stop, volume tarballs, disk snapshot |
 | OpenCTI API (`scripts/opencti-inventory.py`) | Prove the *content* survived: golden numbers before, diff after |
 | GitHub + GHCR | Config as code, and the repeatable image-mirror / bundle-release pipeline |
 
@@ -16,10 +17,9 @@ Three tools, three jobs — keep them separate:
 Commands are grouped by **where they run**. Running one on the wrong host is the
 most common way this migration goes wrong without saying anything.
 
-### On the source — Azure VM and Cloud Shell
+### On the source host
 
 ```bash
-make azure-inventory      # read-only inventory of the Azure side      -> out/azure/
 make opencti-inventory    # golden numbers from the live platform      -> out/inventory-before.json
 make backup               # consistent volume tarballs                -> ./volumes/
 make healthcheck          # containers, object storage, ES, RMQ, Redis, time, TLS -> out/health-*/
@@ -61,7 +61,6 @@ versions.env                   target versions + non-secret settings
 .env.template                  env skeleton — NEVER commit a real .env
 compose/docker-compose.override.yml  air-gap override; confirm service names before use
 
-scripts/azure-inventory.sh     everything to know about the Azure VM, read-only
 scripts/backup-volumes.sh      on the source: consistent volume tarballs
 scripts/stack-healthcheck.sh   runs on either host: containers, storage, ES, RMQ, Redis, time, TLS
 scripts/opencti-inventory.py   read-only GraphQL inventory (counts + config)
@@ -72,6 +71,7 @@ scripts/restore-volumes.sh     inside the gap: every *.tgz -> its volume, then t
 scripts/wazuh-retarget.sh      repoint the Wazuh integration, or move agents to a new manager
 
 .github/workflows/mirror-images.yml   weekly bundle builder -> GitHub Release
+docs/DEPLOY-ANY-VM.md          put the bundle on any VM: air-gapped, LAN, or cloud
 docs/RUNBOOK.md                phased migration runbook
 docs/COMMANDS.md               the full command reference
 docs/WAZUH-INTEGRATION.md      the three Wazuh <-> OpenCTI integration paths

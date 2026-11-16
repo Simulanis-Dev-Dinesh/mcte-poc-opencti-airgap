@@ -54,5 +54,5 @@ fi
 
 echo
 echo "Restored ${#tgz[@]} volume(s)."
-echo "Now start the SAME version you left Azure on, with BOTH compose files:"
+echo "Now start the SAME version you left the source on, with BOTH compose files:"
 echo "  docker compose -f docker-compose.yml -f docker-compose.https.yml up -d"

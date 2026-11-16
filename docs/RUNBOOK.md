@@ -1,4 +1,4 @@
-# Migration runbook — Azure to air gap
+# Migration runbook — source host to air gap
 
 Two hard rules: migrate the *stack*, not the VM; and do not change versions
 during the move.
@@ -15,18 +15,20 @@ during the move.
 ## Phase 1 — Freeze and snapshot
 
 ```bash
-# on the VM: app-consistent stop
+# on the source host: app-consistent stop
 cd /opt/opencti && docker compose stop
 
-# on your workstation
-./scripts/backup-volumes.sh                     # tar the four volumes
-az snapshot create -g SIMULANIS-IN -n opencti-os-$(date +%F)   --source <os-disk-id>
-az snapshot create -g SIMULANIS-IN -n opencti-data-$(date +%F) --source <data-disk-id>
-az vm deallocate -g SIMULANIS-IN -n Opencti     # rollback point, disks retained
+# on the source host: tar the volumes
+./scripts/backup-volumes.sh                     # -> ./volumes/
+
+# at the hypervisor or cloud console: take a disk snapshot of the source
+# (provider-neutral — whatever snapshot mechanism the platform offers)
+# keep the disks; this is your rollback point
 ```
 
-For large ES data, `az snapshot grant-access` + `azcopy copy` beats tar over SSH
-and is resumable.
+Take the snapshot **after** the stack is stopped, never while Elasticsearch is
+writing. For large data, a block-level snapshot plus a copy is faster and more
+resumable than tar over SSH.
 
 ## Phase 2 — Bundle
 
@@ -41,6 +43,9 @@ git bundle create repo.bundle --all
 Encrypt (age/gpg), carry `sha256sums.txt`, two-person sign-off, transfer log.
 
 ## Phase 3 — Stand up the target
+
+Full provider-neutral walkthrough, including how to get the files onto the host:
+[`DEPLOY-ANY-VM.md`](DEPLOY-ANY-VM.md).
 
 ```bash
 # host prep
@@ -87,9 +92,9 @@ on the new base URL.
 - Repoint Wazuh (dry run first, then `--apply`):
   `./scripts/wazuh-retarget.sh --ssh manager@wazuh-server --new-url https://opencti.internal.example`
 - Update DNS / client bookmarks; announce the new base URL
-- Keep Azure VM **deallocated, disks intact** for 30 days; keep the bundle and
-  the volume tarballs
-- Only after sign-off: delete snapshots and disks
+- Keep the source VM **stopped with its disks intact** for 30 days; keep the
+  bundle and the volume tarballs
+- Only after sign-off: delete the source disks and the old snapshots
 
 ## Phase 6 — Ongoing
 

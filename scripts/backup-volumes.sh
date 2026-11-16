@@ -25,4 +25,5 @@ done
 ( cd "$OUT" && sha256sum ./*.tgz > sha256sums.txt )
 echo
 echo "Wrote $OUT/"
-echo "Now: az snapshot create ... (belt and braces), then az vm deallocate."
+echo "Now: take a disk snapshot at the hypervisor or cloud console, then keep"
+echo "the source host stopped with its disks intact as your rollback point."
