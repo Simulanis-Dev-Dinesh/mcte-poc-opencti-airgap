@@ -13,36 +13,69 @@ Three tools, three jobs — keep them separate:
 
 ## Quickstart
 
+Commands are grouped by **where they run**. Running one on the wrong host is the
+most common way this migration goes wrong without saying anything.
+
+### On the source — Azure VM and Cloud Shell
+
 ```bash
-make azure-inventory      # read-only inventory of the Azure side  -> out/azure/
-make opencti-inventory    # golden numbers from the live platform   -> out/inventory-before.json
-make healthcheck          # docker / ES / RabbitMQ / Redis / time / TLS state -> out/health-*/
-make mirror               # mirror images.txt to GHCR + build oci bundle (needs internet)
-make opencti-inventory-after   # golden numbers from the TARGET  -> out/inventory-after.json
-make diff                 # after cutover: inventory-after.json vs inventory-before.json
+make azure-inventory      # read-only inventory of the Azure side      -> out/azure/
+make opencti-inventory    # golden numbers from the live platform      -> out/inventory-before.json
+make backup               # consistent volume tarballs                -> ./volumes/
+make healthcheck          # containers, object storage, ES, RMQ, Redis, time, TLS -> out/health-*/
+```
+
+### On an internet-connected host
+
+```bash
+make mirror               # images.txt -> GHCR + oci archives (needs skopeo and network)
+```
+
+### At the target — inside the air gap
+
+```bash
+LOCAL_REGISTRY=registry.internal:5000 ./scripts/load-into-registry.sh
+SRC=./volumes PROJECT=xtm ./scripts/restore-volumes.sh
+docker compose -f docker-compose.yml -f docker-compose.https.yml up -d
+make healthcheck
+make opencti-inventory-after   # golden numbers from the TARGET -> out/inventory-after.json
+make diff                      # exit 0 = sign-off
+```
+
+### Whenever a Wazuh address changes
+
+Dry run unless you pass `APPLY=1`. Works locally on the manager, or remotely
+with `SSH=manager@wazuh-server`.
+
+```bash
 make wazuh-retarget NEW_URL=https://opencti.internal.example SSH=manager@wazuh-server
-                          # repoint the Wazuh manager; dry run until APPLY=1
+make wazuh-retarget NEW_MANAGER=wazuh.internal.example APPLY=1
 ```
 
 ## Layout
 
 ```
-images.txt                     pinned image list (generate it from the source VM, do not guess)
+Makefile                       every entry point; read it before running anything by hand
+images.txt                     pinned image list (generate from the source VM, never guess)
 versions.env                   target versions + non-secret settings
-.env.template                  OpenCTI env skeleton — NEVER commit a real .env
+.env.template                  env skeleton — NEVER commit a real .env
+compose/docker-compose.override.yml  air-gap override; confirm service names before use
+
 scripts/azure-inventory.sh     everything to know about the Azure VM, read-only
-scripts/stack-healthcheck.sh   runs on either host: containers, ES, RMQ, Redis, time, TLS
-scripts/opencti-inventory.py   read-only GraphQL inventory (counts + config)
-scripts/opencti-diff.py        compares two inventories, exits non-zero on drift
-scripts/mirror-images.sh       skopeo -> GHCR with digest preservation + oci archives
-scripts/load-into-registry.sh  inside the gap: oci archives -> internal registry
-scripts/restore-volumes.sh     inside the gap: restore esdata/s3data/redisdata/amqpdata
 scripts/backup-volumes.sh      on the source: consistent volume tarballs
-scripts/wazuh-retarget.sh      repoint the Wazuh integration / agents at a new address
-.github/workflows/mirror-images.yml   scheduled bundle builder -> GitHub Release
+scripts/stack-healthcheck.sh   runs on either host: containers, storage, ES, RMQ, Redis, time, TLS
+scripts/opencti-inventory.py   read-only GraphQL inventory (counts + config)
+scripts/opencti-diff.py        compares two inventories; exits non-zero on drift OR extras
+scripts/mirror-images.sh       skopeo -> GHCR, digests preserved and verified, + oci archives
+scripts/load-into-registry.sh  inside the gap: oci archives -> internal registry
+scripts/restore-volumes.sh     inside the gap: every *.tgz -> its volume, then the esdata chown
+scripts/wazuh-retarget.sh      repoint the Wazuh integration, or move agents to a new manager
+
+.github/workflows/mirror-images.yml   weekly bundle builder -> GitHub Release
 docs/RUNBOOK.md                phased migration runbook
 docs/COMMANDS.md               the full command reference
-docs/WAZUH-INTEGRATION.md      the three Wazuh<->OpenCTI integration paths
+docs/WAZUH-INTEGRATION.md      the three Wazuh <-> OpenCTI integration paths
+docs/AIRGAP-NOTES.md           GHCR rationale, composer caveat, silent-failure table
 ```
 
 ## Non-negotiables
@@ -51,9 +84,26 @@ docs/WAZUH-INTEGRATION.md      the three Wazuh<->OpenCTI integration paths
    cloud-init / waagent / IMDS do not exist in the air gap.
 2. **Stop the stack before snapshotting.** Elasticsearch must not be writing.
 3. **Same version in, upgrade later.** Two changes at once is how migrations fail.
-4. **Carry `APP__ENCRYPTION_KEY`.** Without it, encrypted secrets (SSO, connector
-   credentials) are unreadable after the move.
-5. **No secrets in this repo.** `.env.template` only. Retrieve anything from Key
-   Vault before decommissioning the VM.
-6. **Nothing inside the gap resolves `ghcr.io`.** GHCR is the internet-side
-   staging mirror only.
+4. **Carry the encryption key.** XTM One calls it `OPENCTI_ENCRYPTION_KEY`, older
+   configs `APP__ENCRYPTION_KEY`. Lose it and every encrypted connector
+   credential, SSO setting and stored secret is unreadable on the other side.
+5. **`PROJECT=xtm`, and both compose files.** The compose project is `xtm`, so
+   the volume tarballs are already `xtm_esdata.tgz` and so on — restoring under a
+   different project writes the data to a volume the stack never mounts, and the
+   platform starts empty with no error. And `docker-compose.https.yml` is where
+   `nginx` lives: one `-f` gives you a platform with no web UI.
+6. **The source-side inventory never runs on the target.** `make opencti-inventory`
+   writes the baseline. Running it on the target overwrites that baseline, and
+   the diff then compares the target with itself and always passes.
+7. **Verify at the receiving end, not on the laptop.** A clean laptop copy proves
+   the laptop. `sha256sum -c` on the target, before a single volume is restored.
+8. **The data bundle never goes in git — and neither do secrets.** GitHub blocks
+   files over 100 MiB and LFS tops out well below `xtm-images.tar`; more to the
+   point, the ES data is TLP-marked intelligence and does not belong on any
+   third-party host. Method in the repo, data on encrypted media. `.env.template`
+   only, ever.
+9. **Nothing inside the gap resolves `ghcr.io`.** GHCR is the internet-side
+   staging mirror only; the internal registry is the only image source in the gap.
+10. **The Wazuh integration fails silently.** No output in `integrations.log`
+    looks identical to "no IoCs matched". Trigger a real alert and confirm a line
+    appears — every time, not just at cutover.
