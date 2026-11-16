@@ -1,0 +1,25 @@
+# Example override for the air-gapped host: every image resolves to the
+# internal registry, never to Docker Hub / GHCR.
+#
+# Copy next to your docker-compose.yml and run:
+#   docker compose -f docker-compose.yml -f docker-compose.override.yml up -d
+#
+# Keep this file in sync with images.txt — same names, same order.
+services:
+  elasticsearch:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/elasticsearch:${ELASTICSEARCH_VERSION}
+    environment:
+      - thread_pool.search.queue_size=5000
+  redis:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/redis:${REDIS_VERSION}
+  rabbitmq:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/rabbitmq:${RABBITMQ_VERSION}
+  minio:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/minio:${MINIO_VERSION}
+  opencti:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/platform:${OPENCTI_VERSION}
+    environment:
+      - APP__BASE_URL=${OPENCTI_BASE_URL}
+      - APP__ENCRYPTION_KEY=${APP__ENCRYPTION_KEY}
+  worker:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/worker:${OPENCTI_VERSION}

@@ -1,0 +1,7 @@
+out/
+.env
+*.tar
+*.tar.gz
+*.tgz
+*.oci.tar
+.DS_Store
