@@ -1,44 +1,146 @@
 # Air-gap override: point every service at the internal registry.
 #
-# VERIFY THE SERVICE NAMES FIRST — this file is only correct if your
-# docker-compose.yml uses the same ones:
+# Service names and image tags below are taken from the source stack
+# (docker compose config --services + the running containers), so this file
+# matches it 1:1 — including the services whose names differ from their image
+# (connector-analysis runs connector-import-document, connector-cyberthreatexchange
+# runs dogesec-cyberthreatexchange).
 #
-#   docker compose config --services        # on the source VM, in the compose dir
+# Only needed for the REGISTRY route (make mirror -> load-into-registry.sh).
+# If you carry xtm-images.tar and `docker load` it, do NOT use this file: the
+# images already carry their original names.
 #
-# A service name that does not exist in your compose file is silently ignored,
-# so a wrong name here does not error — it just leaves that image pointing at
-# Docker Hub inside the air gap.
-#
-# Image names match what scripts/mirror-images.sh produces from images.txt
-# (registry-relative path with separators flattened): xtmone-platform,
-# opencti-platform, elasticsearch-elasticsearch, pgsty-silo, pgvector-pgvector.
-# Both xtmone/platform and opencti/platform are mirrored — point each service
-# at the one it actually runs on the source.
-#
-# Run with BOTH original compose files plus this one:
 #   docker compose -f docker-compose.yml -f docker-compose.https.yml \
 #                  -f compose/docker-compose.override.yml up -d
 services:
+  connector-abuseipdb:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-abuseipdb:latest
+    # source: opencti/connector-abuseipdb:latest
+  connector-alienvault:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-alienvault:latest
+    # source: opencti/connector-alienvault:latest
+  connector-analysis:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-import-document:latest
+    # source: opencti/connector-import-document:latest
+  connector-cape:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-cape:latest
+    # source: opencti/connector-cape:latest
+  connector-cisa-known-exploited-vulnerabilities:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-cisa-known-exploited-vulnerabilities:latest
+    # source: opencti/connector-cisa-known-exploited-vulnerabilities:latest
+  connector-crowdsec:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-crowdsec:6.2.1
+    # source: opencti/connector-crowdsec:6.2.1
+  connector-cyberthreatexchange:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-dogesec-cyberthreatexchange:latest
+    # source: opencti/connector-dogesec-cyberthreatexchange:latest
+  connector-export-file-csv:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-export-file-csv:latest
+    # source: opencti/connector-export-file-csv:latest
+  connector-export-file-stix:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-export-file-stix:latest
+    # source: opencti/connector-export-file-stix:latest
+  connector-export-file-txt:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-export-file-txt:latest
+    # source: opencti/connector-export-file-txt:latest
+  connector-greedybear:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-greedybear:latest
+    # source: opencti/connector-greedybear:latest
+  connector-greynoise-feed:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-greynoise-feed:latest
+    # source: opencti/connector-greynoise-feed:latest
+  connector-hostio:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-hostio:latest
+    # source: opencti/connector-hostio:latest
+  connector-import-document:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-import-document:latest
+    # source: opencti/connector-import-document:latest
+  connector-import-external-reference:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-import-external-reference:latest
+    # source: opencti/connector-import-external-reference:latest
+  connector-import-file-stix:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-import-file-stix:latest
+    # source: opencti/connector-import-file-stix:latest
+  connector-import-file-yara:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-import-file-yara:latest
+    # source: opencti/connector-import-file-yara:latest
+  connector-ipsum:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-ipsum:latest
+    # source: opencti/connector-ipsum:latest
+  connector-malwarebazaar:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-malwarebazaar:latest
+    # source: opencti/connector-malwarebazaar:latest
+  connector-mitre:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-mitre:latest
+    # source: opencti/connector-mitre:latest
+  connector-opencti:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-opencti:latest
+    # source: opencti/connector-opencti:latest
+  connector-ransomwarelive:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-ransomwarelive:rolling
+    # source: opencti/connector-ransomwarelive:rolling
+  connector-redpanda:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-redpanda:latest
+    # source: opencti/connector-redpanda:latest
+  connector-scanmalware-enrichment:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-scanmalware-enrichment:latest
+    # source: opencti/connector-scanmalware-enrichment:latest
+  connector-shodan:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-shodan:latest
+    # source: opencti/connector-shodan:latest
+  connector-threatfox:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-threatfox:latest
+    # source: opencti/connector-threatfox:latest
+  connector-urlhaus:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-urlhaus:latest
+    # source: opencti/connector-urlhaus:latest
+  connector-virustotal:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-virustotal:latest
+    # source: opencti/connector-virustotal:latest
+  connector-vulncheck:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-connector-vulncheck:latest
+    # source: opencti/connector-vulncheck:latest
   elasticsearch:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/elasticsearch-elasticsearch:${ELASTICSEARCH_VERSION}
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/elasticsearch-elasticsearch:8.19.21
+    # source: docker.elastic.co/elasticsearch/elasticsearch:8.19.21
     environment:
       - thread_pool.search.queue_size=5000
-  redis:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/redis:${REDIS_VERSION}
-  rabbitmq:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/rabbitmq:${RABBITMQ_VERSION}
-  silo:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgsty-silo:${SILO_VERSION:-latest}
-  pgvector:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgvector-pgvector:${PGVECTOR_VERSION:-pg17}
-  platform:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-platform:${OPENCTI_VERSION}
+  minio:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgsty-silo:latest
+    # source: pgsty/silo:latest
+  opencti:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-platform:latest
+    # source: opencti/platform:latest
     environment:
       - APP__BASE_URL=${OPENCTI_BASE_URL}
       - APP__ENCRYPTION_KEY=${APP__ENCRYPTION_KEY}
+  opencti-https:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/nginx:stable
+    # source: nginx:stable
+  pgsql-xtm-one:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/pgvector-pgvector:pg17
+    # source: pgvector/pgvector:pg17
+  rabbitmq:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/rabbitmq:4.3-management
+    # source: rabbitmq:4.3-management
+  redis:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/redis:8.10.1
+    # source: redis:8.10.1
+  rsa-key-generator:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/alpine-openssl:latest
+    # source: alpine/openssl:latest
   worker:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-worker:${OPENCTI_VERSION}
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/opencti-worker:latest
+    # source: opencti/worker:latest
   xtm-composer:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/filigran-xtm-composer:${XTM_COMPOSER_VERSION}
-  nginx:
-    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/nginx:${NGINX_VERSION:-stable}
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/filigran-xtm-composer:latest
+    # source: filigran/xtm-composer:latest
+  xtm-one:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-platform:latest
+    # source: xtmone/platform:latest
+    environment:
+      - APP__BASE_URL=${OPENCTI_BASE_URL}
+      - APP__ENCRYPTION_KEY=${APP__ENCRYPTION_KEY}
+  xtm-one-worker:
+    image: ${INTERNAL_REGISTRY:-registry.internal:5000}/xtmone-worker:latest
+    # source: xtmone/worker:latest

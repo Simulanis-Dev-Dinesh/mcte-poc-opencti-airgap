@@ -52,6 +52,34 @@ make wazuh-retarget NEW_URL=https://opencti.internal.example SSH=manager@wazuh-s
 make wazuh-retarget NEW_MANAGER=wazuh.internal.example APPLY=1
 ```
 
+## Which route: bundle or registry
+
+Two ways to get images inside the gap. Pick one, not both.
+
+| Route | How | When |
+|---|---|---|
+| **Bundle** (this deployment) | carry `xtm-images.tar`, `docker load -i xtm-images.tar`, run the **original** compose files, no override | simplest, no registry to run; every image arrives with its own name |
+| Registry | `make mirror` on a connected host, `load-into-registry.sh` inside, then add `compose/docker-compose.override.yml` | you want a registry, or repeated updates |
+
+`compose/docker-compose.override.yml` is generated from the real source stack — all 41
+services, including the two whose service name differs from their image
+(`connector-analysis` runs `connector-import-document`, `connector-cyberthreatexchange`
+runs `dogesec-cyberthreatexchange`). It is only for the registry route; using it with
+`docker load`ed images is harmless but pointless.
+
+## Handing this repo to someone else
+
+It is safe to fork and to hand over: it contains no secrets and no data.
+
+- The **bundle is not in git** and must never be — 12 GB of images plus `env.xtm-one.gpg`
+  (live tokens), `nginx-config.tgz` (private key) and the volume tarballs. Ship it on
+  encrypted media, verify with `sha256sum -c sha256sums.txt` on arrival.
+- Volume tarballs are named `xtm_*.tgz`; `PROJECT=xtm` in `restore-volumes.sh` must stay
+  `xtm`, otherwise the data lands in volumes the stack never mounts and the platform
+  comes up healthy and empty.
+- `versions.env` pins what the source actually ran. `latest` appears because the source
+  itself runs `:latest` tags — that is why the bundle, not the tag, is the source of truth.
+
 ## Layout
 
 ```
